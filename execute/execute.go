@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strings"
 )
 
 var dockerImage = "py-golang:latest"
@@ -18,6 +19,7 @@ func CreateFile(lang string, code string) (string, error) {
 		ext = "py"
 	default:
 		ext = "sh"
+		code = "#!/usr/bin/env bash\n" + code // add shebang - this should be portable to all distros?
 	}
 	filename := fmt.Sprintf("scripts/generated_script.%s", ext)
 	if err := os.WriteFile(filename, []byte(code), 0644); err != nil {
@@ -47,7 +49,7 @@ func ExecuteCode(lang string, code string) (string, error) {
 		cmd = exec.Command("docker", "run", "--rm", "-v", "./scripts:/app/scripts", "--net=none", dockerImage, "python3", filename)
 	default: // defaults to bash
 		fmt.Println("using bash")
-		cmd = exec.Command("docker", "run", "--rm", "-v", "./scripts:/app/scripts", "--net=none", dockerImage, "/bin/sh", filename)
+		cmd = exec.Command("docker", "run", "--rm", "-v", "./scripts:/app/scripts", "--net=none", dockerImage, "/bin/bash", filename)
 	}
 
 	// Capture the output of the container
@@ -63,5 +65,6 @@ func ExecuteCode(lang string, code string) (string, error) {
 	}
 	fmt.Printf("Raw Output: %s\n", output)
 	fmt.Println("... done!")
-	return string(output), nil
+	outputStr := strings.TrimSpace(string(output))
+	return outputStr, nil
 }
