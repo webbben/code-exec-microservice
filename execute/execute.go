@@ -31,24 +31,20 @@ func CreateFile(lang string, code string) (string, error) {
 func ExecuteCode(lang string, code string) (string, error) {
 	var cmd *exec.Cmd
 
-	fmt.Printf("executing code: %s\n", code)
+	fmt.Printf("executing %s code\n", lang)
 	filename, err := CreateFile(lang, code)
 	if err != nil {
 		return "", errors.New(fmt.Sprintf("Error making file: %s", err.Error()))
 	}
-	fmt.Printf("created file: %s\n", filename)
 
 	// execute code in a new container
 	switch lang {
 	case "go":
-		fmt.Println("using golang")
 		// --rm: remove container on exit, --net=none: no internet access
 		cmd = exec.Command("docker", "run", "--rm", "-v", "./scripts:/app/scripts", "--net=none", dockerImage, "go", "run", filename)
 	case "python":
-		fmt.Println("using python")
 		cmd = exec.Command("docker", "run", "--rm", "-v", "./scripts:/app/scripts", "--net=none", dockerImage, "python3", filename)
 	default: // defaults to bash
-		fmt.Println("using bash")
 		cmd = exec.Command("docker", "run", "--rm", "-v", "./scripts:/app/scripts", "--net=none", dockerImage, "/bin/bash", filename)
 	}
 
@@ -63,7 +59,6 @@ func ExecuteCode(lang string, code string) (string, error) {
 	if output == nil {
 		return "", errors.New("Output was nil")
 	}
-	fmt.Printf("Raw Output: %s\n", output)
 	fmt.Println("... done!")
 	outputStr := strings.TrimSpace(string(output))
 	return outputStr, nil

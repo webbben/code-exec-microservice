@@ -11,20 +11,37 @@ import (
 )
 
 // python snippets
-
-// a basic print statement
 var pythonCodeBasicPrint = "print(\"Hello world!\")"
-
-// a basic loop that increments a number and prints it
 var pythonCodeBasicLoop = "def looptyLoop(n):\n  output = 0\n  for i in range(n):\n    output = output+1\n  return output\nprint(looptyLoop(1000))"
 
 // bash snippets
-
-// a basic print statement
 var bashCodeBasicPrint = "echo \"Hello world!\""
-
-// a basic loop
 var bashCodeBasicLoop = "OUTPUT=0\nfor i in {1..1000}\ndo\n  OUTPUT=$((OUTPUT+1))\ndone\necho $OUTPUT"
+
+// go snippets
+var golangCodeBasicPrint = `
+package main
+
+import "fmt"
+
+func main() {
+	fmt.Print("Hello world!")
+}
+`
+
+var golangCodeBasicLoop = `
+package main
+
+import "fmt"
+
+func main() {
+	sum := 0
+	for i := 0; i < 1000; i++ {
+		sum++
+	}
+	fmt.Print(sum)
+}
+`
 
 // == Benchmarks ==
 
@@ -40,6 +57,21 @@ func BenchmarkPythonBasicPrint(b *testing.B) {
 
 func BenchmarkBashBasicPrint(b *testing.B) {
 	reqData := []byte(fmt.Sprintf(`{"lang": "bash", "code": %s}`, bashCodeBasicPrint))
+	runBenchmarkExecRequest(b, reqData)
+}
+
+func BenchmarkBashBasicLoop(b *testing.B) {
+	reqData := []byte(fmt.Sprintf(`{"lang": "bash", "code": %s}`, bashCodeBasicLoop))
+	runBenchmarkExecRequest(b, reqData)
+}
+
+func BenchmarkGolangBasicPrint(b *testing.B) {
+	reqData := []byte(fmt.Sprintf(`{"lang": "go", "code": %s}`, golangCodeBasicPrint))
+	runBenchmarkExecRequest(b, reqData)
+}
+
+func BenchmarkGolangBasicLoop(b *testing.B) {
+	reqData := []byte(fmt.Sprintf(`{"lang": "go", "code": %s}`, golangCodeBasicLoop))
 	runBenchmarkExecRequest(b, reqData)
 }
 
@@ -73,8 +105,8 @@ func TestExecuteCodePythonBasic(t *testing.T) {
 		code     string
 		expected string
 	}{
-		{"python", pythonCodeBasicPrint, "Hello world!"},
-		{"python", pythonCodeBasicLoop, "1000"},
+		{lang: "python", code: pythonCodeBasicPrint, expected: "Hello world!"},
+		{lang: "python", code: pythonCodeBasicLoop, expected: "1000"},
 	}
 
 	for i, test := range testCases {
@@ -98,12 +130,37 @@ func TestExecuteCodeBashBasic(t *testing.T) {
 		code     string
 		expected string
 	}{
-		{"bash", bashCodeBasicPrint, "Hello world!"},
-		{"bash", bashCodeBasicLoop, "1000"},
+		{lang: "bash", code: bashCodeBasicPrint, expected: "Hello world!"},
+		{lang: "bash", code: bashCodeBasicLoop, expected: "1000"},
 	}
 
 	for i, test := range testCases {
 		testName := fmt.Sprintf("Bash Basic %v", i)
+		t.Run(testName, func(t *testing.T) {
+			output, err := execute.ExecuteCode(test.lang, test.code)
+			if err != nil {
+				t.Errorf("ExecuteCode returned an error: %s", err.Error())
+				return
+			}
+			if output != test.expected {
+				t.Errorf("Output: [%s] Expected: [%s]", output, test.expected)
+			}
+		})
+	}
+}
+
+func TestExecuteCodeGolangBasic(t *testing.T) {
+	var testCases = []struct {
+		lang     string
+		code     string
+		expected string
+	}{
+		{lang: "go", code: golangCodeBasicPrint, expected: "Hello world!"},
+		{lang: "go", code: golangCodeBasicLoop, expected: "1000"},
+	}
+
+	for i, test := range testCases {
+		testName := fmt.Sprintf("Golang Basic %v", i)
 		t.Run(testName, func(t *testing.T) {
 			output, err := execute.ExecuteCode(test.lang, test.code)
 			if err != nil {
