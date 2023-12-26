@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/webbben/code-exec-microservice/docker"
 	"github.com/webbben/code-exec-microservice/execute"
 )
 
@@ -109,10 +110,12 @@ func TestExecuteCodePythonBasic(t *testing.T) {
 		{lang: "python", code: pythonCodeBasicLoop, expected: "1000"},
 	}
 
+	docker.InitDockerClient()
+
 	for i, test := range testCases {
 		testName := fmt.Sprintf("Python Basic %v", i)
 		t.Run(testName, func(t *testing.T) {
-			output, err := execute.ExecuteCode(test.lang, test.code)
+			output, err := execute.ExecuteCode(test.lang, test.code, fmt.Sprintf("test%v", i))
 			if err != nil {
 				t.Errorf("ExecuteCode returned an error: %s", err.Error())
 				return
@@ -134,10 +137,12 @@ func TestExecuteCodeBashBasic(t *testing.T) {
 		{lang: "bash", code: bashCodeBasicLoop, expected: "1000"},
 	}
 
+	docker.InitDockerClient()
+
 	for i, test := range testCases {
 		testName := fmt.Sprintf("Bash Basic %v", i)
 		t.Run(testName, func(t *testing.T) {
-			output, err := execute.ExecuteCode(test.lang, test.code)
+			output, err := execute.ExecuteCode(test.lang, test.code, fmt.Sprintf("test%v", i))
 			if err != nil {
 				t.Errorf("ExecuteCode returned an error: %s", err.Error())
 				return
@@ -159,10 +164,12 @@ func TestExecuteCodeGolangBasic(t *testing.T) {
 		{lang: "go", code: golangCodeBasicLoop, expected: "1000"},
 	}
 
+	docker.InitDockerClient()
+
 	for i, test := range testCases {
 		testName := fmt.Sprintf("Golang Basic %v", i)
 		t.Run(testName, func(t *testing.T) {
-			output, err := execute.ExecuteCode(test.lang, test.code)
+			output, err := execute.ExecuteCode(test.lang, test.code, fmt.Sprintf("test%v", i))
 			if err != nil {
 				t.Errorf("ExecuteCode returned an error: %s", err.Error())
 				return

@@ -4,60 +4,48 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
+	"path/filepath"
 	"strings"
+
+	"github.com/webbben/code-exec-microservice/docker"
 )
 
 var dockerImage = "py-golang:latest"
 
-func CreateFile(lang string, code string) (string, error) {
+func CreateFile(lang string, code string, jobID string) (string, error) {
 	var ext = ""
 	switch lang {
 	case "go":
 		ext = "go"
 	case "python":
 		ext = "py"
-	default:
+	case "bash":
 		ext = "sh"
 		code = "#!/usr/bin/env bash\n" + code // add shebang - this should be portable to all distros?
+	default:
+		return "", errors.New(fmt.Sprintf("Language %s unsupported", lang))
 	}
-	filename := fmt.Sprintf("scripts/generated_script.%s", ext)
+	filename := fmt.Sprintf("scripts/%s/generated_script.%s", jobID, ext)
+	if err := os.MkdirAll(filepath.Dir(filename), 0755); err != nil {
+		return "", err
+	}
 	if err := os.WriteFile(filename, []byte(code), 0644); err != nil {
 		return "", err
 	}
 	return filename, nil
 }
 
-func ExecuteCode(lang string, code string) (string, error) {
-	var cmd *exec.Cmd
-
+func ExecuteCode(lang string, code string, jobID string) (string, error) {
 	fmt.Printf("executing %s code\n", lang)
-	filename, err := CreateFile(lang, code)
+	filename, err := CreateFile(lang, code, jobID)
 	if err != nil {
 		return "", errors.New(fmt.Sprintf("Error making file: %s", err.Error()))
 	}
 
 	// execute code in a new container
-	switch lang {
-	case "go":
-		// --rm: remove container on exit, --net=none: no internet access
-		cmd = exec.Command("docker", "run", "--rm", "-v", "./scripts:/app/scripts", "--net=none", dockerImage, "go", "run", filename)
-	case "python":
-		cmd = exec.Command("docker", "run", "--rm", "-v", "./scripts:/app/scripts", "--net=none", dockerImage, "python3", filename)
-	default: // defaults to bash
-		cmd = exec.Command("docker", "run", "--rm", "-v", "./scripts:/app/scripts", "--net=none", dockerImage, "/bin/bash", filename)
-	}
-
-	// Capture the output of the container
-	output, err := cmd.CombinedOutput()
+	output, err := docker.RunCodeContainer(jobID, lang, filename)
 	if err != nil {
-		if output != nil {
-			err = errors.New(fmt.Sprintf("(%s) %s", err.Error(), output))
-		}
 		return "", err
-	}
-	if output == nil {
-		return "", errors.New("Output was nil")
 	}
 	fmt.Println("... done!")
 	outputStr := strings.TrimSpace(string(output))
