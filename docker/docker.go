@@ -21,6 +21,15 @@ var dockerClient *client.Client
 // image our containers use
 var image = "py-golang:latest"
 
+// resource limits for containers
+
+var maxMemory int64 = 128 * 1024 * 1024 // 128 MB
+var maxCPU int64 = int64(1e9)           // 1 CPU core
+
+// other config
+
+var logStatus bool = false // log container exit status?
+
 // Initializes the docker client
 func InitDockerClient() {
 	var err error
@@ -32,7 +41,6 @@ func InitDockerClient() {
 }
 
 func RunCodeContainer(jobID string, lang string, filename string) (string, error) {
-	fmt.Printf("Creating a container for job %s\n", jobID)
 	ctx := context.Background()
 
 	// create the command based on the programming language
@@ -66,6 +74,10 @@ func RunCodeContainer(jobID string, lang string, filename string) (string, error
 		AutoRemove:  false,
 		Binds:       []string{fmt.Sprintf("%s/scripts/%s:/app/scripts/%s", wd, jobID, jobID)},
 		NetworkMode: "none",
+		Resources: container.Resources{
+			Memory:   maxMemory,
+			NanoCPUs: maxCPU,
+		},
 	}
 	// create the container
 	resp, err := dockerClient.ContainerCreate(
@@ -102,7 +114,9 @@ func RunCodeContainer(jobID string, lang string, filename string) (string, error
 			return "", err
 		}
 	case status := <-statusCh:
-		fmt.Printf("Container exited with status %v\n", status)
+		if logStatus {
+			fmt.Printf("Container exited with status %v\n", status)
+		}
 	}
 
 	// get the output from the container

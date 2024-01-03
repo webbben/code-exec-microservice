@@ -1,10 +1,7 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
-	"net/http"
-	"net/http/httptest"
 	"testing"
 
 	"github.com/webbben/code-exec-microservice/docker"
@@ -47,54 +44,33 @@ func main() {
 // == Benchmarks ==
 
 func BenchmarkPythonBasicLoop(b *testing.B) {
-	reqData := []byte(fmt.Sprintf(`{"lang": "python", "code": %s}`, pythonCodeBasicLoop))
-	runBenchmarkExecRequest(b, reqData)
+	runBenchmarkExecuteCode(b, "python", pythonCodeBasicLoop)
 }
 
 func BenchmarkPythonBasicPrint(b *testing.B) {
-	reqData := []byte(fmt.Sprintf(`{"lang": "python", "code": %s}`, pythonCodeBasicPrint))
-	runBenchmarkExecRequest(b, reqData)
+	runBenchmarkExecuteCode(b, "python", pythonCodeBasicPrint)
 }
 
 func BenchmarkBashBasicPrint(b *testing.B) {
-	reqData := []byte(fmt.Sprintf(`{"lang": "bash", "code": %s}`, bashCodeBasicPrint))
-	runBenchmarkExecRequest(b, reqData)
+	runBenchmarkExecuteCode(b, "bash", bashCodeBasicPrint)
 }
 
 func BenchmarkBashBasicLoop(b *testing.B) {
-	reqData := []byte(fmt.Sprintf(`{"lang": "bash", "code": %s}`, bashCodeBasicLoop))
-	runBenchmarkExecRequest(b, reqData)
+	runBenchmarkExecuteCode(b, "bash", bashCodeBasicLoop)
 }
 
 func BenchmarkGolangBasicPrint(b *testing.B) {
-	reqData := []byte(fmt.Sprintf(`{"lang": "go", "code": %s}`, golangCodeBasicPrint))
-	runBenchmarkExecRequest(b, reqData)
+	runBenchmarkExecuteCode(b, "go", golangCodeBasicPrint)
 }
 
 func BenchmarkGolangBasicLoop(b *testing.B) {
-	reqData := []byte(fmt.Sprintf(`{"lang": "go", "code": %s}`, golangCodeBasicLoop))
-	runBenchmarkExecRequest(b, reqData)
+	runBenchmarkExecuteCode(b, "go", golangCodeBasicLoop)
 }
 
-func runBenchmarkExecRequest(b *testing.B, requestData []byte) {
-	server := httptest.NewServer(http.HandlerFunc(handleExecRequest))
-	defer server.Close()
-
-	client := server.Client()
-
+func runBenchmarkExecuteCode(b *testing.B, lang string, code string) {
+	docker.InitDockerClient()
 	for i := 0; i < b.N; i++ {
-		// Create the request using the input requestData
-		req, err := http.NewRequest("POST", server.URL, bytes.NewBuffer(requestData))
-		if err != nil {
-			b.Fatalf("Error creating request: %v", err)
-		}
-		req.Header.Set("Content-Type", "application/json")
-
-		// Do the HTTP request
-		_, err = client.Do(req)
-		if err != nil {
-			b.Fatalf("Error making request: %v", err)
-		}
+		execute.ExecuteCode(lang, code, fmt.Sprintf("benchmark%v", i))
 	}
 }
 
