@@ -1,6 +1,11 @@
 ## Code Execution Microservice
-This is a code execution microservice that will execute code snippets in specific programming languges; as of now, the list includes Python, Go, and Bash.
-It's essentially an HTTP server that exposes a POST API endpoint which allows you to send code, and it returns the output and whether an error occurred during its execution.
+This is a code execution microservice that will execute code snippets in specific programming languages.
+It's an HTTP server that exposes a POST API endpoint which allows you to send code, and it returns the output and whether an error occurred during its execution.
+
+As of now, these are the supported programming languages:
+* Python
+* Go
+* Bash
 
 ## How it works
 The actual code execution is relatively simple: 
