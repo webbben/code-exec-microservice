@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/webbben/code-exec-microservice/docker"
 	"github.com/webbben/code-exec-microservice/execute"
 )
@@ -41,6 +42,25 @@ func main() {
 }
 `
 
+var golangTestLoop = `
+package main
+
+import (
+	"fmt"
+	"log"
+)
+
+func main() {
+	log.Println("main called in go script")
+	sum := 0
+	for i := 0; i < 1000; i++ {
+		sum++
+	}
+	log.Println("main ended in go script")
+	fmt.Print(sum)
+}
+`
+
 // == Benchmarks ==
 
 func BenchmarkPythonBasicLoop(b *testing.B) {
@@ -70,8 +90,33 @@ func BenchmarkGolangBasicLoop(b *testing.B) {
 func runBenchmarkExecuteCode(b *testing.B, lang string, code string) {
 	docker.InitDockerClient()
 	for i := 0; i < b.N; i++ {
-		execute.ExecuteCode(lang, code, fmt.Sprintf("benchmark%v", i))
+		execute.ExecuteCode(lang, code, fmt.Sprintf("benchmark%v", i), false)
 	}
+}
+
+func BenchmarkParallelPython(b *testing.B) {
+	runParallelBenchmark(b, "python", pythonCodeBasicLoop)
+}
+
+func BenchmarkParallelBash(b *testing.B) {
+	runParallelBenchmark(b, "bash", bashCodeBasicLoop)
+}
+
+func BenchmarkParallelGo(b *testing.B) {
+	runParallelBenchmark(b, "go", golangCodeBasicLoop)
+}
+
+func runParallelBenchmark(b *testing.B, lang string, code string) {
+	docker.InitDockerClient()
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			jobID := fmt.Sprintf("benchmark_%s", uuid.New().String())
+			_, err := execute.ExecuteCode(lang, code, jobID, false)
+			if err != nil {
+				fmt.Printf("Error executing code: %v\n", err)
+			}
+		}
+	})
 }
 
 // == Unit tests ==
@@ -91,7 +136,7 @@ func TestExecuteCodePythonBasic(t *testing.T) {
 	for i, test := range testCases {
 		testName := fmt.Sprintf("Python Basic %v", i)
 		t.Run(testName, func(t *testing.T) {
-			output, err := execute.ExecuteCode(test.lang, test.code, fmt.Sprintf("test%v", i))
+			output, err := execute.ExecuteCode(test.lang, test.code, fmt.Sprintf("test%v", i), false)
 			if err != nil {
 				t.Errorf("ExecuteCode returned an error: %s", err.Error())
 				return
@@ -118,7 +163,7 @@ func TestExecuteCodeBashBasic(t *testing.T) {
 	for i, test := range testCases {
 		testName := fmt.Sprintf("Bash Basic %v", i)
 		t.Run(testName, func(t *testing.T) {
-			output, err := execute.ExecuteCode(test.lang, test.code, fmt.Sprintf("test%v", i))
+			output, err := execute.ExecuteCode(test.lang, test.code, fmt.Sprintf("test%v", i), false)
 			if err != nil {
 				t.Errorf("ExecuteCode returned an error: %s", err.Error())
 				return
@@ -145,7 +190,7 @@ func TestExecuteCodeGolangBasic(t *testing.T) {
 	for i, test := range testCases {
 		testName := fmt.Sprintf("Golang Basic %v", i)
 		t.Run(testName, func(t *testing.T) {
-			output, err := execute.ExecuteCode(test.lang, test.code, fmt.Sprintf("test%v", i))
+			output, err := execute.ExecuteCode(test.lang, test.code, fmt.Sprintf("test%v", i), false)
 			if err != nil {
 				t.Errorf("ExecuteCode returned an error: %s", err.Error())
 				return

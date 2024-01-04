@@ -36,7 +36,10 @@ func CreateFile(lang string, code string, jobID string) (string, error) {
 	return filename, nil
 }
 
-func ExecuteCode(lang string, code string, jobID string) (string, error) {
+func ExecuteCode(lang string, code string, jobID string, debug bool) (string, error) {
+	if debug {
+		log.Printf("start: executing %s code\n", lang)
+	}
 	filename, err := CreateFile(lang, code, jobID)
 	if err != nil {
 		return "", errors.New(fmt.Sprintf("Error making file: %s", err.Error()))
@@ -49,10 +52,13 @@ func ExecuteCode(lang string, code string, jobID string) (string, error) {
 	}()
 
 	// execute code in a new container
-	output, err := docker.RunCodeContainer(jobID, lang, filename)
+	output, err := docker.RunCodeContainer(jobID, lang, filename, debug)
 	if err != nil {
 		return "", err
 	}
 	outputStr := strings.TrimSpace(string(output))
+	if debug {
+		log.Printf("end: executing %s code\n", lang)
+	}
 	return outputStr, nil
 }

@@ -49,7 +49,7 @@ func handleExecRequest(w http.ResponseWriter, r *http.Request) {
 
 	jobID := uuid.New().String()
 
-	output, err := execute.ExecuteCode(req.Lang, req.Code, jobID)
+	output, err := execute.ExecuteCode(req.Lang, req.Code, jobID, false)
 	var res ExecResponse
 	if err != nil {
 		res = ExecResponse{

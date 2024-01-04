@@ -15,20 +15,26 @@ import (
 	"github.com/docker/docker/client"
 )
 
-// docker client
-var dockerClient *client.Client
+// docker client and images
 
-// image our containers use
-var image = "py-golang:latest"
+var (
+	dockerClient *client.Client       // docker client
+	image        = "py-golang:latest" // image our containers use
+)
 
 // resource limits for containers
 
-var maxMemory int64 = 128 * 1024 * 1024 // 128 MB
-var maxCPU int64 = int64(1e9)           // 1 CPU core
+var (
+	maxMemory int64 = 128 * 1024 * 1024 // 128 MB
+	maxCPU    int64 = int64(1e9)        // 1 CPU core
+)
 
 // other config
 
-var logStatus bool = false // log container exit status?
+var (
+	logStatus  bool = false // log container exit status?
+	autoRemove bool = true  // automatically remove container after code execution?
+)
 
 // Initializes the docker client
 func InitDockerClient() {
@@ -40,7 +46,7 @@ func InitDockerClient() {
 	fmt.Println("Docker client initialization complete")
 }
 
-func RunCodeContainer(jobID string, lang string, filename string) (string, error) {
+func RunCodeContainer(jobID string, lang string, filename string, debug bool) (string, error) {
 	ctx := context.Background()
 
 	// create the command based on the programming language
@@ -57,6 +63,78 @@ func RunCodeContainer(jobID string, lang string, filename string) (string, error
 		return "", errors.New(fmt.Sprintf("language %s not supported", lang))
 	}
 
+	containerID, err := createContainer(jobID, cmd)
+	if err != nil {
+		return "", err
+	}
+	if debug {
+		log.Println("container created")
+	}
+	// docker SDK's built-in autoRemove setting seems to cause problems for bash code execution, so doing this instead
+	defer func() {
+		if autoRemove {
+			err = dockerClient.ContainerRemove(ctx, jobID, types.ContainerRemoveOptions{
+				RemoveVolumes: true,
+				Force:         true,
+			})
+			if err != nil {
+				fmt.Println("Error removing container:", err)
+			}
+		}
+	}()
+
+	// run the container
+	if debug {
+		log.Println("starting container")
+	}
+	err = dockerClient.ContainerStart(ctx, containerID, types.ContainerStartOptions{})
+	if err != nil {
+		return "", err
+	}
+	statusCh, errCh := dockerClient.ContainerWait(ctx, containerID, "")
+	select {
+	case err := <-errCh:
+		if err != nil {
+			return "", err
+		}
+	case status := <-statusCh:
+		if logStatus || debug {
+			log.Printf("Container exited with status %v\n", status)
+		}
+	}
+
+	// get the output from the container
+	out, err := dockerClient.ContainerLogs(ctx, containerID, types.ContainerLogsOptions{ShowStdout: true, ShowStderr: false})
+	if err != nil {
+		return "", err
+	}
+	if debug {
+		log.Println("reading output bytes")
+	}
+	outputBytes, err := io.ReadAll(out)
+	if err != nil {
+		return "", err
+	}
+	outputString := string(outputBytes)
+	outputString = removeNonPrintableChars(outputString)
+	return outputString, nil
+}
+
+// strips non-printable ascii characters from a string
+//
+// docker container logs prefix weird non-ascii characters to the output for some reason.
+// it seems like it could be the timestamp but it doesn't come through as that when the
+// output bytes are decoded.
+func removeNonPrintableChars(logStr string) string {
+	// regular expression pattern that matches non-printable ascii characters
+	regexPattern := "[[:cntrl:]]"
+	re := regexp.MustCompile(regexPattern)
+	return re.ReplaceAllString(logStr, "")
+}
+
+// create a docker container for a code execution job
+func createContainer(jobID string, cmd []string) (string, error) {
+	ctx := context.Background()
 	config := &container.Config{
 		Image:        image,
 		Cmd:          cmd,
@@ -88,59 +166,5 @@ func RunCodeContainer(jobID string, lang string, filename string) (string, error
 		nil,
 		jobID,
 	)
-	if err != nil {
-		return "", err
-	}
-	// autoRemove seems to cause problems for bash code execution, so doing this instead
-	defer func() {
-		err = dockerClient.ContainerRemove(ctx, jobID, types.ContainerRemoveOptions{
-			RemoveVolumes: true,
-			Force:         true,
-		})
-		if err != nil {
-			fmt.Println("Error removing container:", err)
-		}
-	}()
-
-	// run the container
-	err = dockerClient.ContainerStart(ctx, resp.ID, types.ContainerStartOptions{})
-	if err != nil {
-		return "", err
-	}
-	statusCh, errCh := dockerClient.ContainerWait(ctx, resp.ID, "")
-	select {
-	case err := <-errCh:
-		if err != nil {
-			return "", err
-		}
-	case status := <-statusCh:
-		if logStatus {
-			fmt.Printf("Container exited with status %v\n", status)
-		}
-	}
-
-	// get the output from the container
-	out, err := dockerClient.ContainerLogs(ctx, resp.ID, types.ContainerLogsOptions{ShowStdout: true, ShowStderr: false})
-	if err != nil {
-		return "", err
-	}
-	outputBytes, err := io.ReadAll(out)
-	if err != nil {
-		return "", err
-	}
-	outputString := string(outputBytes)
-	outputString = removeNonPrintableChars(outputString)
-	return outputString, nil
-}
-
-// strips non-printable ascii characters from a string
-//
-// docker container logs prefix weird non-ascii characters to the output for some reason.
-// it seems like it could be the timestamp but it doesn't come through as that when the
-// output bytes are decoded.
-func removeNonPrintableChars(logStr string) string {
-	// regular expression pattern that matches non-printable ascii characters
-	regexPattern := "[[:cntrl:]]"
-	re := regexp.MustCompile(regexPattern)
-	return re.ReplaceAllString(logStr, "")
+	return resp.ID, nil
 }
