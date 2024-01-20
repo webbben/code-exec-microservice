@@ -1,10 +1,10 @@
 package docker
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -13,6 +13,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
+	"github.com/docker/docker/pkg/stdcopy"
 )
 
 // docker client and images
@@ -111,11 +112,15 @@ func RunCodeContainer(jobID string, lang string, filename string, debug bool) (s
 	if debug {
 		log.Println("reading output bytes")
 	}
-	outputBytes, err := io.ReadAll(out)
+	dstout, dsterr := &bytes.Buffer{}, &bytes.Buffer{}
+	_, err = stdcopy.StdCopy(dstout, dsterr, out)
 	if err != nil {
 		return "", err
 	}
-	outputString := string(outputBytes)
+	outputString := dstout.String()
+	if outputString == "" {
+		outputString = dsterr.String()
+	}
 	outputString = removeNonPrintableChars(outputString)
 	return outputString, nil
 }

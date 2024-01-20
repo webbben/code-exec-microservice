@@ -11,6 +11,7 @@ import (
 
 // python snippets
 var pythonCodeBasicPrint = "print(\"Hello world!\")"
+var pythonCodeBigPrint = "print(\"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ\")"
 var pythonCodeBasicLoop = "def looptyLoop(n):\n  output = 0\n  for i in range(n):\n    output = output+1\n  return output\nprint(looptyLoop(1000))"
 
 // bash snippets
@@ -129,6 +130,7 @@ func TestExecuteCodePythonBasic(t *testing.T) {
 	}{
 		{lang: "python", code: pythonCodeBasicPrint, expected: "Hello world!"},
 		{lang: "python", code: pythonCodeBasicLoop, expected: "1000"},
+		{lang: "python", code: pythonCodeBigPrint, expected: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"},
 	}
 
 	docker.InitDockerClient()

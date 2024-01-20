@@ -44,6 +44,7 @@ func ExecuteCode(lang string, code string, jobID string, debug bool) (string, er
 	if err != nil {
 		return "", errors.New(fmt.Sprintf("Error making file: %s", err.Error()))
 	}
+
 	defer func() {
 		// delete created folder/file
 		if err = os.RemoveAll(fmt.Sprintf("scripts/%s", jobID)); err != nil {
