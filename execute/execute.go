@@ -5,15 +5,14 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
-
-	"github.com/webbben/code-exec-microservice/docker"
 )
 
 var dockerImage = "py-golang:latest"
 
-func CreateFile(lang string, code string, jobID string) (string, error) {
+func CreateFile(lang string, code string) (string, error) {
 	var ext = ""
 	switch lang {
 	case "go":
@@ -26,7 +25,7 @@ func CreateFile(lang string, code string, jobID string) (string, error) {
 	default:
 		return "", errors.New(fmt.Sprintf("Language %s unsupported", lang))
 	}
-	filename := fmt.Sprintf("scripts/%s/generated_script.%s", jobID, ext)
+	filename := fmt.Sprintf("scripts/generated_script.%s", ext)
 	if err := os.MkdirAll(filepath.Dir(filename), 0755); err != nil {
 		return "", err
 	}
@@ -36,26 +35,35 @@ func CreateFile(lang string, code string, jobID string) (string, error) {
 	return filename, nil
 }
 
-func ExecuteCode(lang string, code string, jobID string, debug bool) (string, error) {
+func ExecuteCode(lang string, code string, debug bool) (string, error) {
+	var cmd *exec.Cmd
 	if debug {
 		log.Printf("start: executing %s code\n", lang)
 	}
-	filename, err := CreateFile(lang, code, jobID)
+	filename, err := CreateFile(lang, code)
 	if err != nil {
 		return "", errors.New(fmt.Sprintf("Error making file: %s", err.Error()))
 	}
 
-	defer func() {
-		// delete created folder/file
-		if err = os.RemoveAll(fmt.Sprintf("scripts/%s", jobID)); err != nil {
-			log.Printf("Failed to remove scripts directory for job %s: %s\n", jobID, err.Error())
-		}
-	}()
-
 	// execute code in a new container
-	output, err := docker.RunCodeContainer(jobID, lang, filename, debug)
+	switch lang {
+	case "go":
+		cmd = exec.Command("go", "run", filename)
+	case "python":
+		cmd = exec.Command("python3", filename)
+	case "bash":
+		cmd = exec.Command("/bin/bash", filename)
+	}
+	// Capture the output of the container
+	output, err := cmd.CombinedOutput()
 	if err != nil {
+		if output != nil {
+			err = errors.New(fmt.Sprintf("(%s) %s", err.Error(), output))
+		}
 		return "", err
+	}
+	if output == nil {
+		return "", errors.New("Output was nil")
 	}
 	outputStr := strings.TrimSpace(string(output))
 	if debug {

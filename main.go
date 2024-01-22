@@ -7,9 +7,7 @@ import (
 	"net/http"
 	"slices"
 
-	"github.com/google/uuid"
 	"github.com/gorilla/mux"
-	"github.com/webbben/code-exec-microservice/docker"
 	"github.com/webbben/code-exec-microservice/execute"
 )
 
@@ -25,7 +23,6 @@ type ExecResponse struct {
 var supportedLangs = []string{"python", "go", "bash"}
 
 func main() {
-	docker.InitDockerClient()
 	r := mux.NewRouter()
 
 	// TODO implement authentication to limit who can use this API
@@ -33,7 +30,7 @@ func main() {
 
 	fmt.Println("== code execution service! ==")
 	fmt.Println("Server listening on localhost:8081")
-	log.Fatal(http.ListenAndServe(":8081", r))
+	log.Fatal(http.ListenAndServe(":8080", r))
 }
 
 func handleExecRequest(w http.ResponseWriter, r *http.Request) {
@@ -46,10 +43,8 @@ func handleExecRequest(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Language %s not supported", req.Lang), http.StatusBadRequest)
 		return
 	}
-
-	jobID := uuid.New().String()
 	log.Printf("received %s code execution request", req.Lang)
-	output, err := execute.ExecuteCode(req.Lang, req.Code, jobID, false)
+	output, err := execute.ExecuteCode(req.Lang, req.Code, false)
 	var res ExecResponse
 	if err != nil {
 		res = ExecResponse{

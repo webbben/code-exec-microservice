@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/google/uuid"
-	"github.com/webbben/code-exec-microservice/docker"
 	"github.com/webbben/code-exec-microservice/execute"
 )
 
@@ -89,9 +87,8 @@ func BenchmarkGolangBasicLoop(b *testing.B) {
 }
 
 func runBenchmarkExecuteCode(b *testing.B, lang string, code string) {
-	docker.InitDockerClient()
 	for i := 0; i < b.N; i++ {
-		execute.ExecuteCode(lang, code, fmt.Sprintf("benchmark%v", i), false)
+		execute.ExecuteCode(lang, code, false)
 	}
 }
 
@@ -108,11 +105,9 @@ func BenchmarkParallelGo(b *testing.B) {
 }
 
 func runParallelBenchmark(b *testing.B, lang string, code string) {
-	docker.InitDockerClient()
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			jobID := fmt.Sprintf("benchmark_%s", uuid.New().String())
-			_, err := execute.ExecuteCode(lang, code, jobID, false)
+			_, err := execute.ExecuteCode(lang, code, false)
 			if err != nil {
 				fmt.Printf("Error executing code: %v\n", err)
 			}
@@ -133,12 +128,10 @@ func TestExecuteCodePythonBasic(t *testing.T) {
 		{lang: "python", code: pythonCodeBigPrint, expected: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"},
 	}
 
-	docker.InitDockerClient()
-
 	for i, test := range testCases {
 		testName := fmt.Sprintf("Python Basic %v", i)
 		t.Run(testName, func(t *testing.T) {
-			output, err := execute.ExecuteCode(test.lang, test.code, fmt.Sprintf("test%v", i), false)
+			output, err := execute.ExecuteCode(test.lang, test.code, false)
 			if err != nil {
 				t.Errorf("ExecuteCode returned an error: %s", err.Error())
 				return
@@ -160,12 +153,10 @@ func TestExecuteCodeBashBasic(t *testing.T) {
 		{lang: "bash", code: bashCodeBasicLoop, expected: "1000"},
 	}
 
-	docker.InitDockerClient()
-
 	for i, test := range testCases {
 		testName := fmt.Sprintf("Bash Basic %v", i)
 		t.Run(testName, func(t *testing.T) {
-			output, err := execute.ExecuteCode(test.lang, test.code, fmt.Sprintf("test%v", i), false)
+			output, err := execute.ExecuteCode(test.lang, test.code, false)
 			if err != nil {
 				t.Errorf("ExecuteCode returned an error: %s", err.Error())
 				return
@@ -187,12 +178,10 @@ func TestExecuteCodeGolangBasic(t *testing.T) {
 		{lang: "go", code: golangCodeBasicLoop, expected: "1000"},
 	}
 
-	docker.InitDockerClient()
-
 	for i, test := range testCases {
 		testName := fmt.Sprintf("Golang Basic %v", i)
 		t.Run(testName, func(t *testing.T) {
-			output, err := execute.ExecuteCode(test.lang, test.code, fmt.Sprintf("test%v", i), false)
+			output, err := execute.ExecuteCode(test.lang, test.code, false)
 			if err != nil {
 				t.Errorf("ExecuteCode returned an error: %s", err.Error())
 				return

@@ -1,4 +1,3 @@
-# Dockerfile
 FROM alpine:latest
 
 WORKDIR /app
@@ -10,4 +9,8 @@ RUN apk add --no-cache go python3
 RUN apk update
 RUN apk add --no-cache bash
 
-CMD ["sh"]
+# Copy the go code and build the executable
+COPY . .
+RUN go build -o execService
+
+CMD ["./execService"]
